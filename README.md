@@ -47,6 +47,7 @@ The bot picks up tickets that have **two kinds of labels**:
 | `hcc-ai-kessel` | `instance/kessel/agent/` | `repo:kessel-sdk-browser` | [project-kessel/kessel-sdk-browser](https://github.com/project-kessel/kessel-sdk-browser) |
 | `hcc-ai-kessel` | `instance/kessel/agent/` | `repo:parsec` | [project-kessel/parsec](https://github.com/project-kessel/parsec) |
 | `hcc-ai-kessel` | `instance/kessel/agent/` | `repo:kessel-ai-dev` | [project-kessel/kessel-ai-dev](https://github.com/project-kessel/kessel-ai-dev) |
+| `hcc-ai-kessel` | `instance/kessel/agent/` | `repo:docs` | [project-kessel/docs](https://github.com/project-kessel/docs) |
 | `hcc-ai-kessel` | `instance/kessel/agent/` | `repo:starlark-unified-schema` | [project-kessel/starlark-unified-schema](https://github.com/project-kessel/starlark-unified-schema) |
 
 To add a repo:

@@ -17,11 +17,13 @@ When loading personas (workflow step 6), use the repo key from `project-repos.js
 | `kessel-sdk-browser` | `sdk-browser` | `frontend` |
 | `parsec` | `parsec` | `backend` |
 | `kessel-ai-dev` | `infra` | `backend`, `tooling` |
+| `docs` | `docs` | `backend`, `infra`, `tooling` |
 | `starlark-unified-schema` | `starlark` | `backend` |
 
 For `kessel-sdk-*` repos, load **only** the mapped persona. Do not load `backend`, `frontend`, or other SDK language personas.
 For `parsec`, load **only** the `parsec` persona. Do not load `backend`.
 For `kessel-ai-dev`, load **only** the `infra` persona. Do not load `backend` or `tooling`.
+For `docs`, load **only** the `docs` persona. Do not load `backend`, `infra`, or `tooling`.
 For `starlark-unified-schema`, load **only** the `starlark` persona. Do not load `backend`.
 
 ## Version Management
