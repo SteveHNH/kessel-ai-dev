@@ -1,6 +1,8 @@
 # kessel-ai-dev
 
-Custom bot runner for the Kessel team, built on [dev-bot](https://github.com/RedHatInsights/platform-frontend-ai-dev) (platform-frontend-ai-dev).
+Custom bot runner for the Kessel team, built on [dev-bot](https://github.com/OpenShift-Fleet/rehor) (OpenShift-Fleet/rehor).
+
+> **Note:** The dev-bot submodule was previously hosted at `RedHatInsights/platform-frontend-ai-dev` and later moved to `OpenShift-Fleet/rehor`. Both are Red Hat-owned. The canonical upstream is `OpenShift-Fleet/rehor` as configured in `.gitmodules`.
 
 This repo contains instance-specific configuration only — the bot code lives in the `dev-bot` submodule.
 
@@ -24,7 +26,7 @@ This repo contains instance-specific configuration only — the bot code lives i
 │               ├── sdk-node/         # kessel-sdk-node
 │               ├── sdk-browser/      # kessel-sdk-browser
 │               └── tooling/          # kessel-kafka-connect
-└── dev-bot/                          # Submodule → platform-frontend-ai-dev
+└── dev-bot/                          # Submodule → OpenShift-Fleet/rehor
 ```
 
 ## Jira labels and repos
