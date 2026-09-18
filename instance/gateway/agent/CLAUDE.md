@@ -4,6 +4,8 @@
 
 All work → `gateway-config` persona. Repo: `app-interface` (GitLab). MRs not PRs. Branch: `master`.
 
+Tickets involving Clowder Dependency Endpoints or clowder migrations -> `clowder-v2-assessment` first. Only hand off to `clowder-v2-migration` when assessment produces a verified migration packet with no decision-required fields. For ref provisioning or cutover, also read `personas/clowder-v2/provisioning.md`.
+
 ## Ticket gate
 
 Claim ticket = OK. But validate info BEFORE opening MR.

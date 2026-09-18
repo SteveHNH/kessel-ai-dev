@@ -11,9 +11,11 @@ This repo contains instance-specific configuration only — the bot code lives i
 ```
 ├── setup.sh                          # Instance setup (runs during Docker build)
 ├── deploy/
-│   └── template.yaml                 # OpenShift deploy template (bot-only)
+│   ├── template.yaml                 # Kessel bot deployment
+│   ├── gateway-template.yaml         # Gateway bot deployment
 ├── instance/
-│   └── kessel/
+│   ├── kessel/
+│   └── gateway/
 │       └── agent/
 │           ├── mcp.json              # MCP server config (Jira)
 │           ├── project-repos.json    # Repos this instance works on
