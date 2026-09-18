@@ -1,0 +1,6 @@
+{
+  "advisor-backend": {
+    "upstream": "https://github.com/RedHatInsights/advisor-backend.git",
+    "url": "https://github.com/platex-rehor-bot/advisor-backend.git"
+  }
+}

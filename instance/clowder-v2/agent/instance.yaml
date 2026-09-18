@@ -1,0 +1,8 @@
+workflow: jira-sprint
+source: jira
+envs:
+  - go
+  - node
+  - slack
+claude_md:
+  strategy: append
