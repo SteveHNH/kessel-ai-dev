@@ -9,25 +9,46 @@ This repo contains instance-specific configuration only — the bot code lives i
 ## Structure
 
 ```
-├── setup.sh                          # Instance setup (runs during Docker build)
+├── .tekton/                          # Konflux pipeline definitions
+├── setup.sh                          # Instance setup (runs during image build)
 ├── deploy/
-│   ├── template.yaml                 # Kessel bot deployment
-│   ├── gateway-template.yaml         # Gateway bot deployment
+│   ├── template.yaml                 # Kessel bot deployment template
+│   └── gateway-template.yaml         # Gateway bot deployment template
 ├── instance/
 │   ├── kessel/
+│   │   └── agent/
+│   │       ├── CLAUDE.md             # Kessel-specific agent instructions
+│   │       ├── instance.yaml         # Kessel instance config
+│   │       ├── mcp.json              # MCP server config
+│   │       ├── project-repos.json    # Kessel repos this instance works on
+│   │       ├── scripts/
+│   │       │   └── setup-inventory-env.sh
+│   │       └── personas/
+│   │           ├── backend/          # inventory-api, inventory-consumer
+│   │           ├── docs/             # docs
+│   │           ├── infra/            # kessel-ai-dev
+│   │           ├── parsec/           # parsec
+│   │           ├── sdk-browser/      # kessel-sdk-browser
+│   │           ├── sdk-go/           # kessel-sdk-go
+│   │           ├── sdk-java/         # kessel-sdk-java
+│   │           ├── sdk-node/         # kessel-sdk-node
+│   │           ├── sdk-py/           # kessel-sdk-py
+│   │           ├── sdk-ruby/         # kessel-sdk-ruby
+│   │           ├── starlark/         # starlark-unified-schema
+│   │           └── tooling/          # kessel-kafka-connect
 │   └── gateway/
 │       └── agent/
-│           ├── mcp.json              # MCP server config (Jira)
-│           ├── project-repos.json    # Repos this instance works on
-│           └── personas/
-│               ├── backend/          # inventory-api, inventory-consumer
-│               ├── sdk-go/           # kessel-sdk-go
-│               ├── sdk-py/           # kessel-sdk-py
-│               ├── sdk-java/         # kessel-sdk-java
-│               ├── sdk-ruby/         # kessel-sdk-ruby
-│               ├── sdk-node/         # kessel-sdk-node
-│               ├── sdk-browser/      # kessel-sdk-browser
-│               └── tooling/          # kessel-kafka-connect
+│           ├── CLAUDE.md             # Gateway-specific agent instructions
+│           ├── instance.yaml         # Gateway instance config
+│           ├── mcp.json              # MCP server config
+│           ├── project-repos.json    # Gateway repos this instance works on
+│           ├── personas/
+│           │   ├── clowder-v2/       # Shared Clowder v2 references
+│           │   ├── clowder-v2-assessment/
+│           │   ├── clowder-v2-migration/
+│           │   └── gateway-config/   # app-interface gateway config
+│           └── skills/
+│               └── clowder-v2-assess/
 └── dev-bot/                          # Submodule → OpenShift-Fleet/rehor
 ```
 
