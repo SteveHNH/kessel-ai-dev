@@ -17,6 +17,8 @@ Required input is a migration packet with verified or explicitly accepted assume
 - TLS/CA behavior.
 - Request boundaries and caller workloads.
 - Effective Clowder client library and V2 helper contract.
+- Eligibility evidence showing each dependency already uses the Clowder endpoint API.
+- Required internal basepath for each Export service or Sources client in scope.
 
 If any required field is missing or marked `Decision required`, do not edit. Return the Jira comment from the assessment packet or a corrected one.
 
@@ -39,18 +41,24 @@ V2 public and private endpoints have this shape:
 
 ### Auth Rules
 
-- `authenticated: true`: attach the existing workload/OAuth/Kessel bearer behavior used by the repository. Do not create a parallel auth stack when the app already has one.
+- `authenticated: true`: when a supported Kessel SDK is already available, use its established authentication facility. Otherwise attach only the existing verified request authentication from the migration packet; do not invent a mechanism.
 - `authenticated: false`: do not add a V2 workload bearer. Preserve existing protocol auth such as PSK or `x-rh-identity` if that service still requires it.
 - Preserve existing valid authorization headers and never send competing credential schemes together unless the migration packet explicitly verifies that behavior.
 - Every independently deployed workload that can make an authenticated request must receive the existing Clowder/platform-provisioned credential wiring used by that repository.
-- If the repository does not already have Kessel/OAuth/workload auth for the dependency, do not introduce Kessel SDK, OAuth client credentials, bearer-token env vars, or token-refresher sidecars unless the migration packet explicitly accepts that mechanism.
+- Do not add Kessel SDK solely for this migration. Class 2 and Class 4 applications that need new authentication must return to assessment as `Decision required`; do not introduce OAuth client credentials, bearer-token env vars, PSK, identity forwarding, or token-refresher sidecars by inference.
 
-### Auth/Discovery Quadrants
+### Scope Gate
 
-- **Kessel integrated + Clowder discovery present**: preserve existing Kessel/OAuth auth and finish V2 discovery gaps.
-- **Kessel not integrated + Clowder discovery present**: implement discovery only when the packet marks auth as out of scope or preserves existing request auth. If the packet expects new auth but does not verify the mechanism, stop.
-- **Kessel integrated + Clowder discovery absent**: use existing Kessel auth and migrate discovery only if required by the packet; otherwise keep env discovery and document it.
-- **Kessel not integrated + Clowder discovery absent**: do not combine speculative auth work with speculative discovery. Stop unless both endpoint keys and auth mechanism are verified or auth is explicitly out of scope.
+- Change service discovery only for RBAC, Kessel, Export service, and Sources clients that already use the Clowder endpoint API for that dependency.
+- Do not replace env/config-based discovery with Clowder. Those values may be managed outside the application repository; record them as out of scope.
+- Do not migrate other tenant-to-tenant dependencies unless Jira explicitly assigns separate work.
+
+### Auth/Discovery Classes
+
+- **Class 1, Kessel SDK available + eligible Clowder discovery**: migrate the existing lookup to V2 and use the supported SDK authentication facility when required.
+- **Class 2, no Kessel SDK + eligible Clowder discovery**: migrate discovery only when the packet verifies that existing request auth remains sufficient. Stop on any new auth requirement.
+- **Class 3, Kessel SDK available + no eligible Clowder discovery**: make no service-discovery change; leave env/config discovery intact.
+- **Class 4, no Kessel SDK + no eligible Clowder discovery**: make no discovery or authentication change.
 
 ### Proceed-Without-Questions Defaults
 
@@ -59,13 +67,16 @@ Use these defaults to complete routine migrations without asking humans, but onl
 - Preserve existing env/default fallback for non-Clowder, local, tests, and rollout.
 - Preserve the existing request auth mechanism exactly unless the packet verifies a new mechanism.
 - Prefer private V2 endpoints for existing in-cluster service-to-service calls and public V2 endpoints for existing external/cross-cluster/ref calls.
-- Use V2 `.uri` directly and leave existing path appends unchanged.
+- Use V2 `.uri` directly. Preserve path appends except for verified Export service and Sources internal-basepath migrations.
 - Use V2 CA path when present; otherwise keep system trust. Never disable TLS verification.
-- If auth is undecided for a no-Kessel service, implement discovery-only only when the packet explicitly scopes auth out and existing request auth remains unchanged. Put the auth decision in PR follow-ups or Human Verification Required.
+- If auth is undecided for Class 2, stop and return to assessment. Do not defer a required authentication decision to a PR follow-up.
 
-### Kessel Rule
+### Internal Basepaths
 
-If Kessel is in scope and current code uses `KESSEL_URL`, `KESSEL_INVENTORY_URL`, `*_KESSEL_*`, or equivalent env/config discovery, migrate Kessel discovery to Clowder V2 in Clowder mode. Preserve env fallback only for non-Clowder/local/test or verified rollout compatibility. A migration is incomplete if Kessel remains env-only in Clowder mode.
+- This path change applies only to Export service and Sources clients in scope. Do not alter RBAC, Kessel, or other client basepaths.
+- Derive the exact path from `docs/tenant-services/console.redhat.com/app-sops/gateway/design/ewgw-internal-api-basepath.md` and current provider routes; do not infer it from the service name alone.
+- For Export service, the established form is `/internal/export/v1/...` when the provider exposes that route. Replace legacy `/app/export/v1/...` only with deployment evidence that the internal route is available.
+- Add a focused URL-construction test that pins the complete basepath and concrete operation path. Preserve query parameters and path joining behavior.
 
 ### Language Contracts
 
@@ -90,6 +101,12 @@ private, privateOK := clowder.GetV2PrivateDependencyEndpoint("<app>", "<deployme
 
 Each helper returns `(DependencyEndpointV2, bool)`. Select the endpoint only when the boolean is true and `.Uri` is non-empty. Read `.Uri`, `.Authenticated`, and `.CaCertificate`.
 
+Java and other languages:
+
+- Verify the exact V2 API from the installed library version, generated config model, or compiled source. Do not translate the Python or Go helper contract by analogy.
+- Preserve the language and framework's established configuration injection, TLS, and client lifecycle patterns.
+- Add compile/build coverage plus focused resolver, authentication, CA, fallback, and URL tests equivalent to the behavior matrix below.
+
 ### Implementation Rules
 
 1. Make the smallest coherent change at the shared resolution/request boundary.
@@ -99,6 +116,7 @@ Each helper returns `(DependencyEndpointV2, bool)`. Select the endpoint only whe
 5. Add focused tests for every applicable behavior matrix row.
 6. Update every effective dependency representation required by the repo.
 7. Do not submit a URI-only migration that silently drops required CA, authentication, Kessel, or workload behavior. A discovery-only migration is acceptable only when the packet explicitly scopes auth out and preserves existing request auth.
+8. Do not modify env/config-only discovery or dependencies outside RBAC, Kessel, Export service, and Sources.
 
 ### Required Behavior Matrix
 

@@ -36,28 +36,36 @@ Goal: avoid asking humans when repository evidence supports a conservative migra
 - **Auth when existing mechanism is clear**: preserve the repo's existing Kessel/OAuth/workload/PSK/identity behavior at the same request boundary. Do not ask for confirmation just because V2 exposes `authenticated`.
 - **Auth when no mechanism exists**: do not invent one. If the ticket can be completed as discovery-only while preserving existing auth, produce a discovery-only packet and list cross-cluster auth as a follow-up/decision. If the ticket explicitly requires authenticated cross-cluster calls, block with `Decision required`.
 
+### Scope Gate
+
+- Service discovery changes are limited to RBAC, Kessel, Export service, and Sources. Do not migrate other tenant-to-tenant dependencies unless Jira explicitly assigns that separate work.
+- A dependency is eligible only when its client already obtains that dependency through the Clowder endpoint API. Migrate that lookup to V2; do not replace env/config-based discovery with Clowder as part of this work.
+- Treat env/config-only discovery as `Out of scope`, not as a migration gap. Record the current mechanism and the external configuration owner in the packet when known.
+- Dead declarations, unused Clowder dependencies, and Clowder used only for unrelated infrastructure do not establish eligibility. Trace the effective client lookup.
+
 ### Required Assessment Steps
 
 1. Run `/clowder-v2-assess` or `skills/clowder-v2-assess/scripts/assess.py --phase before` on the target repo.
 2. Identify whether the ticket is consumer migration, `ClowdAppRef` provisioning/cutover, or end-to-end. For provisioning/cutover, also read `personas/clowder-v2/provisioning.md`.
-3. Identify every dependency in scope: RBAC, Kessel, Export service, Sources, and any service explicitly named by Jira.
-4. Classify the target into one auth/discovery quadrant:
-   - Kessel integrated + Clowder discovery present.
-   - Kessel not integrated + Clowder discovery present.
-   - Kessel integrated + Clowder discovery absent.
-   - Kessel not integrated + Clowder discovery absent.
-5. For each dependency, determine:
+3. Inventory RBAC, Kessel, Export service, and Sources. For each one, mark `Eligible` only when the effective client already uses the Clowder endpoint API; otherwise mark `Out of scope`. List other tenant dependencies as intentionally excluded.
+4. Classify the target into one auth/discovery class:
+   - Class 1: Kessel SDK available + eligible Clowder discovery.
+   - Class 2: no Kessel SDK + eligible Clowder discovery.
+   - Class 3: Kessel SDK available + no eligible Clowder discovery.
+   - Class 4: no Kessel SDK + no eligible Clowder discovery.
+5. For each eligible dependency, determine the following. For an out-of-scope dependency, record only the current discovery mechanism and evidence that it is not Clowder endpoint API discovery.
    - Dependency application key.
    - Deployment key.
    - Public or private endpoint.
    - Current discovery mechanism.
    - Required V1/env fallback during rollout, if any.
-   - Existing request path(s) and shared request boundary.
+   - Existing request path(s), basepath, and shared request boundary.
    - Existing auth behavior that must remain.
    - Existing workload/OAuth/Kessel credential wiring.
    - TLS/CA behavior today and expected V2 CA behavior.
    - Every independently deployed server, worker, and job that can execute those calls.
 6. Verify the effective Clowder client library and exact V2 helper contract from installed source, lockfiles, vendor tree, or a live import.
+7. For eligible Export service and Sources clients, verify the required internal API basepath against `docs/tenant-services/console.redhat.com/app-sops/gateway/design/ewgw-internal-api-basepath.md`, the provider's current routes, and focused URL tests. Do not apply this basepath work to RBAC, Kessel, or unrelated clients.
 
 ### Endpoint And Auth Interpretation
 
@@ -75,18 +83,18 @@ V2 public and private endpoints have this shape:
 - `authenticated`: the endpoint requires workload/transport authentication. The flag is not credentials and does not identify the auth scheme.
 - `ca_certificate`: optional filesystem path. It is not PEM content. When absent, callers should preserve system trust and never disable TLS verification.
 
-For HCC services, `authenticated: true` usually maps to the app's existing workload/OAuth/Kessel auth capability. Apps that already use Kessel should already have OAuth2/workload auth support; assessment should verify that existing credential wiring rather than asking implementers to invent a new auth stack.
+For HCC services, `authenticated: true` usually maps to the app's existing workload/OAuth/Kessel auth capability. When a supported Kessel SDK is already available, require its established authentication facility rather than a bespoke token client. Verify the exact SDK API, credential wiring, and caller coverage from the installed version.
 
-If Kessel is in scope and the app currently uses `KESSEL_URL`, `KESSEL_INVENTORY_URL`, `*_KESSEL_*`, or equivalent env/config discovery, the migration packet must require Kessel service discovery to move to Clowder V2 in Clowder mode. Env fallback is allowed only for non-Clowder/local/test or verified rollout compatibility.
+Do not add Kessel SDK solely to satisfy this migration. Authentication for Class 2 and Class 4 applications remains a product/platform decision: if an eligible endpoint requires new authentication, mark it `Decision required` and block rather than selecting OAuth, PSK, identity forwarding, or sidecars.
 
-### Auth/Discovery Quadrants
+### Auth/Discovery Classes
 
-- **Kessel integrated + Clowder discovery present**: normally straightforward. Verify existing Kessel/OAuth path, move any remaining dependency discovery to V2 helpers, and preserve existing auth behavior.
-- **Kessel not integrated + Clowder discovery present**: discovery can usually migrate, but auth for `authenticated: true` endpoints is a decision point. Do not ask implementation to add Kessel SDK, OAuth client credentials, bearer-token env vars, or a token-refresher sidecar unless that choice is explicitly verified.
-- **Kessel integrated + Clowder discovery absent**: use existing Kessel auth; migrate discovery only when the ticket requires it. If the ticket only covers auth, retaining env discovery may be acceptable and must be recorded.
-- **Kessel not integrated + Clowder discovery absent**: both auth and discovery are decision points. Preserve env/config discovery until the target endpoint keys and auth mechanism are verified.
+- **Class 1, Kessel SDK available + eligible Clowder discovery**: migrate the existing lookup to V2 and use the supported SDK authentication facility when the endpoint requires authentication. Preserve verified protocol-specific credentials when they remain required.
+- **Class 2, no Kessel SDK + eligible Clowder discovery**: migrate discovery only when existing request authentication remains sufficient. Any new authentication mechanism is `Decision required`.
+- **Class 3, Kessel SDK available + no eligible Clowder discovery**: no service-discovery change. Do not replace env/config discovery; record the dependency as out of scope.
+- **Class 4, no Kessel SDK + no eligible Clowder discovery**: no service-discovery change and no speculative authentication work.
 
-For repos in either **Kessel not integrated** quadrant, a discovery-only migration packet is acceptable only when auth is explicitly marked out of scope and existing request auth is preserved. Otherwise mark auth behavior as `Decision required` and block migration.
+For Class 2, a discovery-only migration packet is acceptable only when existing request auth is preserved and sufficient for the V2 endpoint. Otherwise mark auth behavior as `Decision required` and block migration. Class 4 has no eligible implementation work.
 
 When a no-Kessel service already forwards `x-rh-identity`, PSK, or another service-specific credential to the dependency, treat that as existing auth to preserve, not as a signal to add OAuth. Only new cross-cluster `authenticated: true` behavior needs a product/platform decision.
 
@@ -105,8 +113,8 @@ Return a packet with exactly these sections:
 
 ### Dependencies In Scope
 
-| Dependency | App key | Deployment key | Public/private | Fallback | Auth behavior | CA/TLS behavior | Evidence | Certainty |
-|---|---|---|---|---|---|---|---|---|
+| Dependency | Eligibility | App key | Deployment key | Public/private | Basepath | Fallback | Auth behavior | CA/TLS behavior | Evidence | Certainty |
+|---|---|---|---|---|---|---|---|---|---|---|
 
 ### Request Boundaries
 
@@ -132,11 +140,12 @@ Do not hand off to `clowder-v2-migration` when any of these are decision-require
 - Endpoint app key or deployment key.
 - Public/private endpoint choice.
 - Authentication behavior for `authenticated: true` or `authenticated: false`.
-- Whether a no-Kessel service should adopt Kessel SDK, another OAuth/workload helper, or no new auth for cross-cluster endpoints.
+- Authentication mechanism for a Class 2 or Class 4 application. Do not propose adding Kessel SDK as the default resolution.
 - Required fallback/rollout behavior.
 - Existing credential source/wiring for authenticated calls.
 - Independently deployed workload coverage.
 - Effective V2 helper availability.
+- Required Export service or Sources internal basepath.
 
 Instead, comment on Jira with a checklist. Example:
 
@@ -150,6 +159,7 @@ I started the Clowder V2 migration assessment, but implementation is blocked unt
 - Confirm existing workload credential wiring for callers:
 - Confirm which deployed workloads execute these callers:
 - Confirm generated `cdappconfig.json` contains the expected V2 endpoint:
+- Confirm the internal basepath exposed for Export service or Sources:
 ```
 
 Never ask for information until all discovery sources above have been checked.

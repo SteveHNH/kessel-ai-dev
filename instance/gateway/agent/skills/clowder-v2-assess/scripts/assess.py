@@ -24,15 +24,19 @@ SKIP_DIRS = {
     ".venv",
     "node_modules",
 }
-SOURCE_SUFFIXES = {".py", ".rb", ".go", ".js", ".ts", ".tsx"}
+SOURCE_SUFFIXES = {".py", ".rb", ".go", ".java", ".kt", ".js", ".ts", ".tsx"}
 TEXT_SUFFIXES = SOURCE_SUFFIXES | {
+    ".gradle",
     ".json",
+    ".kts",
     ".lock",
     ".md",
     ".mod",
+    ".properties",
     ".sum",
     ".toml",
     ".txt",
+    ".xml",
     ".yaml",
     ".yml",
 }
@@ -550,14 +554,10 @@ def analyze(repo: Path, phase: str) -> Assessment:
         )
 
     if kessel_env_discovery and not kessel_v2_helper:
-        finding = Finding(
-            "Kessel appears to use environment/config service discovery without an obvious Kessel V2 endpoint helper.",
-            ", ".join(kessel_env_discovery[:8]),
+        assessment.verified.append(
+            "Kessel environment/config discovery remains outside the Clowder V2 scope: "
+            + ", ".join(kessel_env_discovery[:8])
         )
-        if phase == "after" and assessment.helper_calls:
-            assessment.errors.append(finding)
-        else:
-            assessment.warnings.append(finding)
 
     if assessment.helper_calls and (
         "ca_certificate" in attributes or "CaCertificate" in go_fields
