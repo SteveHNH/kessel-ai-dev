@@ -18,7 +18,7 @@ Before asking Jira/reporters for information, check these sources in order:
 1. Jira ticket description, fields, comments, links, and attached/generated examples.
 2. `clowder-migration.csv` when present.
 3. Target application repository code, lockfiles, CI/hermetic build inputs, and tests.
-4. Authoritative deployment manifests, app-interface, `ClowdApp`, `ClowdAppRef`, and generated `cdappconfig.json` examples.
+4. Authoritative deployment manifests, app-interface, `ClowdApp`, `ClowdAppRef`, and generated `cdappconfig.json` examples. In most repos the `ClowdApp` template is co-located with the application code under `deploy/`, `openshift/`, or `.cicd/` — check the target repo itself before assuming the template lives elsewhere. For the four in-scope platform dependencies specifically (RBAC, Kessel, Export service, Sources), do not go looking for their *provider's* repo at all — check `personas/clowder-v2/references/platform-dependency-v2-keys.md` first (see the recipe under "Defaultable Decisions" below). That table exists so this persona never needs network access to another team's repo as a routine step.
 5. Relevant SOPs under `docs/tenant-services/console.redhat.com/app-sops/hcc/`.
 6. Only then comment on Jira for missing facts.
 
@@ -29,6 +29,28 @@ Treat the CSV as prior evidence, not current truth. Match by repository URL, ten
 Goal: avoid asking humans when repository evidence supports a conservative migration. Use these defaults only when evidence is present and cite that evidence in the packet.
 
 - **Endpoint app/deployment keys**: use the dependency name and deployment key from generated `cdappconfig.json`, current `ClowdApp`/`ClowdAppRef`, or the app-common helper already used by the repo. If there is exactly one V2 endpoint for the dependency, use it. If multiple names exist and no caller-specific evidence distinguishes them, mark `Decision required`.
+
+  **Recipe — RBAC/Kessel/Export/Sources use a bundled static reference, not a live repo lookup:**
+  These four dependencies are platform-owned and few in number, so their app/deployment keys are maintained as static
+  facts rather than rediscovered per ticket. This avoids depending on network access to another team's repo as a
+  routine part of every assessment.
+  1. Confirm the app key from the consumer's own existing lookup (e.g. the key already used in a legacy V1
+     `LoadedConfig.endpoints`/`get_v2_dependency_endpoint` call, or its `dependencies:`/`optionalDependencies:` list).
+  2. Look it up in `personas/clowder-v2/references/platform-dependency-v2-keys.md`. If a matching, non-stale row
+     exists, cite it directly — `Verified`, no repo crawl needed.
+  3. If the dependency isn't in the table yet, or the consumer's observed usage doesn't match the row (e.g. a
+     different `apiPath`), mark `Decision required` and prefer asking a human/the platform team to confirm (or paste
+     one real `cdappconfig.json`) over crawling the provider's repo — that keeps the fix durable for every future
+     consumer instead of a one-off. If the provider's repo happens to already be available and reachable, checking
+     its `deploy/`/`openshift/`/`.cicd/` directory is a reasonable way to help answer a human's question or propose a
+     table update, but this is a maintenance action on the reference file, not a required assessment step, and must
+     never be assumed to succeed — the assessment environment may have no network path to that repo's host at all.
+  4. Whichever of `public`/`private` the table lists determines which endpoint exists. If `private` is "No",
+     `get_v2_private_dependency_endpoint` will always return `None` for it — use the public endpoint; this is not a
+     violation of the "prefer private for in-cluster calls" default, since private isn't offered by the provider.
+  This fails (mark `Decision required`) when the dependency isn't in the table and can't otherwise be confirmed
+  offline, or when the table is stale and no fresher evidence is available — treat that exactly like a missing
+  `cdappconfig.json`.
 - **Public vs private endpoint**: preserve current traffic scope. Existing in-cluster service-to-service calls should prefer private endpoints when available. Existing external/cross-cluster/ref traffic should use the public endpoint. If current traffic scope is ambiguous, inspect generated config and deployment manifests before asking.
 - **Fallback behavior**: preserve existing env/default fallback for non-Clowder, local, tests, and rollout unless the repo already has a tested Clowder-only pattern. Do not ask whether local env fallback is needed; assume yes.
 - **URI construction**: prefer complete V2 `uri` values over rebuilding host/scheme/port. For legacy fallback, preserve the repo's existing URL builder exactly unless it is clearly the migration target.
@@ -65,7 +87,7 @@ Goal: avoid asking humans when repository evidence supports a conservative migra
    - TLS/CA behavior today and expected V2 CA behavior.
    - Every independently deployed server, worker, and job that can execute those calls.
 6. Verify the effective Clowder client library and exact V2 helper contract from installed source, lockfiles, vendor tree, or a live import.
-7. For eligible Export service and Sources clients, verify the required internal API basepath against `docs/tenant-services/console.redhat.com/app-sops/gateway/design/ewgw-internal-api-basepath.md`, the provider's current routes, and focused URL tests. Do not apply this basepath work to RBAC, Kessel, or unrelated clients.
+7. For eligible Export service and Sources clients, verify the required internal API basepath against `docs/tenant-services/console.redhat.com/app-sops/gateway/design/ewgw-internal-api-basepath.md` (app-interface) — or `personas/clowder-v2/references/ewgw-internal-api-basepath.md` (bundled copy) when app-interface isn't checked out locally — plus the provider's current routes, and focused URL tests. Prefer the live app-interface doc when both are available and reconcile any drift. Per that reference's guidance: if `personas/clowder-v2/references/platform-dependency-v2-keys.md` lists the dependency as `public` only (no `private`), the consumer's only V2 endpoint is the public one and its native path is the existing `/api/<service>/...`-style path already in use — there is no basepath migration to make; preserve the existing path append and do not treat this as `Decision required`. Only treat the basepath as unresolved when the provider *does* expose a private/internal endpoint and its native internal path cannot be confirmed. Do not apply this basepath work to RBAC, Kessel, or unrelated clients.
 
 ### Endpoint And Auth Interpretation
 

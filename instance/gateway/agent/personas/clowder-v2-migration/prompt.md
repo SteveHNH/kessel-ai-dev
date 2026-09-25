@@ -74,7 +74,8 @@ Use these defaults to complete routine migrations without asking humans, but onl
 ### Internal Basepaths
 
 - This path change applies only to Export service and Sources clients in scope. Do not alter RBAC, Kessel, or other client basepaths.
-- Derive the exact path from `docs/tenant-services/console.redhat.com/app-sops/gateway/design/ewgw-internal-api-basepath.md` and current provider routes; do not infer it from the service name alone.
+- Derive the exact path from `docs/tenant-services/console.redhat.com/app-sops/gateway/design/ewgw-internal-api-basepath.md` (app-interface), or `personas/clowder-v2/references/ewgw-internal-api-basepath.md` when app-interface isn't checked out, and current provider routes; do not infer it from the service name alone.
+- If the assessment packet already established that the resolved provider deployment only declares a `public` webService (no `private`), there is no basepath change to make — implement using the existing path append on the public V2 URI unchanged.
 - For Export service, the established form is `/internal/export/v1/...` when the provider exposes that route. Replace legacy `/app/export/v1/...` only with deployment evidence that the internal route is available.
 - Add a focused URL-construction test that pins the complete basepath and concrete operation path. Preserve query parameters and path joining behavior.
 
@@ -129,14 +130,32 @@ Java and other languages:
 
 ### Validation
 
-Run:
+Write the tests, but don't provision infrastructure to run the full suite locally. Most repos already run their full
+test suite (with a real DB/broker) in CI on every PR — duplicating that locally (e.g. standing up Postgres/Kafka
+containers) is slow and wasteful, and CI is the more trustworthy result anyway since it matches the repo's actual
+pipeline. This mirrors `gateway-config`'s "don't run `make bundle validate` locally, let CI run it" rule.
 
-1. Focused unit tests for changed resolution and request boundaries.
-2. Repo-required lint/build/import checks.
-3. Production/hermetic import or build check when the repo has one.
+Do locally (cheap, no external infra required):
+
+1. Write focused unit tests for every applicable Required Behavior Matrix row at the changed resolution/request
+   boundaries, in the repo's existing test style/location.
+2. Repo-required lint checks (e.g. `flake8`).
+3. A syntax/import sanity check (e.g. `py_compile`, or importing the changed module directly) — enough to catch
+   mechanical mistakes, not a substitute for the real test run.
 4. `/clowder-v2-assess` or `skills/clowder-v2-assess/scripts/assess.py --phase after`.
 
-Fix mechanical errors. Put remaining warnings into PR **Human Verification Required**.
+Do NOT do locally unless the repo's tests are already trivially runnable with no extra setup (e.g. pure in-memory
+unit tests with no DB fixture requirement):
+
+- Spinning up a database, message broker, or other service containers just to execute the test suite.
+- Running the full test suite end-to-end as a substitute for CI.
+
+Push and open the MR/PR, then check CI status. If CI fails on the new tests or on unrelated pre-existing flakiness,
+fix and re-check CI rather than trying to fully reproduce the CI environment locally first.
+
+Fix mechanical errors caught by the cheap local checks. Put anything that can only be confirmed by CI or a human into
+PR **Human Verification Required**, and say so explicitly (e.g. "not run locally — no test DB provisioned; will
+validate via CI").
 
 ### PR Body
 
